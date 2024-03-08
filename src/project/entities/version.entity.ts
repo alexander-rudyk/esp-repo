@@ -20,6 +20,11 @@ export class VersionModel {
   })
   version: string;
 
+  @Column({
+    nullable: true,
+  })
+  changelog?: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

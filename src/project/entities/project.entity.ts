@@ -23,6 +23,11 @@ export class ProjectModel {
   })
   git_ref: string;
 
+  @Column({
+    nullable: true,
+  })
+  description?: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
