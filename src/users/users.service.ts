@@ -7,8 +7,20 @@ import { UserCreateDto } from './dto/user.create.dto';
 export class UsersService {
   constructor(@Inject('USER_REPO') private userRepository: Repository<User>) {}
 
-  async findByEmail(email: string) {
-    return this.userRepository.findOne({ where: { email } });
+  async findByEmail(email: string, includePass: boolean = true) {
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (!includePass) delete user.password;
+
+    return user;
+  }
+
+  async findById(id: number, includePass: boolean = true) {
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (!includePass) delete user.password;
+
+    return user;
   }
 
   async createUser(dto: UserCreateDto) {
