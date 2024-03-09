@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { FileModel } from './file.entity';
 import { ProjectModel } from './project.entity';
+import { User } from 'src/users/entities/user.entity';
 
 @Entity({ name: 'version' })
 export class VersionModel {
@@ -30,6 +31,9 @@ export class VersionModel {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ManyToOne(() => User)
+  createdBy: User;
 
   @OneToMany(() => FileModel, (file) => file.version)
   files: FileModel[];

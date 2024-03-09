@@ -2,11 +2,13 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { VersionModel } from './version.entity';
+import { User } from 'src/users/entities/user.entity';
 
 @Entity({ name: 'project' })
 export class ProjectModel {
@@ -33,6 +35,9 @@ export class ProjectModel {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ManyToOne(() => User)
+  createdBy: User;
 
   @OneToMany(() => VersionModel, (version) => version.project)
   versions: VersionModel[];
