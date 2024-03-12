@@ -28,6 +28,12 @@ export class ProjectController {
   }
 
   @UseGuards(AuthGuard)
+  @Get()
+  async getMyProjects(@Request() req) {
+    return this.projectService.getAllProjects(req.user);
+  }
+
+  @UseGuards(AuthGuard)
   @Post(':id/upload')
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -38,7 +44,7 @@ export class ProjectController {
   )
   async createNewVersion(
     @Request() req,
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Body() body: { version: string | null },
     @UploadedFiles()
     files: {
@@ -56,22 +62,34 @@ export class ProjectController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('info/:id')
-  getInfo(@Param('id') id: string) {
+  @Get(':id/info')
+  getInfo(@Param('id') id: number) {
     return this.projectService.getProjectInfo(id);
   }
 
   @UseGuards(AuthGuard)
-  @Get('history/:id')
-  getHistory(@Param('id') id: string) {
+  @Get(':id/history')
+  getHistory(@Param('id') id: number) {
     return this.projectService.getHistory(id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get(':id/rights')
+  getRights(@Request() req, @Param('id') id: number) {
+    return this.projectService.getProjectRights(id, req.user);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get(':id/participants')
+  getParticipants(@Param('id') id: number) {
+    return this.projectService.getParticipants(id);
   }
 
   @UseGuards(AuthGuard)
   @Get('file/:id/download')
   async downloadProjectFile(
     @Request() req,
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const { stream, file } = await this.projectService.getFileStream(

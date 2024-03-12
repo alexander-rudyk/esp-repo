@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { VersionModel } from './version.entity';
+import { VersionModel } from '../../project/entities/version.entity';
 
 @Entity({ name: 'file' })
 export class FileModel {

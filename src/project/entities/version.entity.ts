@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { FileModel } from './file.entity';
+import { FileModel } from '../../files/entities/file.entity';
 import { ProjectModel } from './project.entity';
 import { User } from 'src/users/entities/user.entity';
 

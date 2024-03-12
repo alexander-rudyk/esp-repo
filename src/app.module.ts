@@ -5,6 +5,8 @@ import { MulterModule } from '@nestjs/platform-express';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { RightsModule } from './rights/rights.module';
+import { FilesModule } from './files/files.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { UsersModule } from './users/users.module';
     ProjectModule,
     AuthModule,
     UsersModule,
+    RightsModule,
+    FilesModule,
   ],
   controllers: [],
   providers: [],

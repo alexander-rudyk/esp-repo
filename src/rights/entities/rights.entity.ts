@@ -1,6 +1,6 @@
 import { User } from 'src/users/entities/user.entity';
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { ProjectModel } from './project.entity';
+import { ProjectModel } from '../../project/entities/project.entity';
 
 @Entity({ name: 'project_right' })
 export class RightsModel {

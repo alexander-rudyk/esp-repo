@@ -3,6 +3,7 @@ export class FileCreateDto {
   mimetype: string;
   filename?: string;
   originalname: string;
-  buffer: Buffer;
+  buffer?: Buffer;
   path?: string;
+  version?: { id: number };
 }

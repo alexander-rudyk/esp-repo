@@ -1,14 +1,12 @@
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { FileModel } from './entities/file.entity';
 import { ProjectModel } from './entities/project.entity';
 import * as fs from 'fs';
 import { ProjectCreateDto } from './dto/project.create.dto';
-import { extname } from 'path';
-import { FileCreateDto } from './dto/file.create.dto';
 import { VersionModel } from './entities/version.entity';
-import { FindOptionsSelect, Repository } from 'typeorm';
+import { FindOptionsSelect, In, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { RightsModel } from './entities/rights.entity';
+import { RightsService } from 'src/rights/rights.service';
+import { FilesService } from 'src/files/files.service';
 
 @Injectable()
 export class ProjectService {
@@ -22,8 +20,8 @@ export class ProjectService {
   constructor(
     @Inject('PROJECT_REPO') private projectRepository: Repository<ProjectModel>,
     @Inject('VERSION_REPO') private versionRepository: Repository<VersionModel>,
-    @Inject('FILE_REPO') private fileRepository: Repository<FileModel>,
-    @Inject('RIGHTS_REPO') private rightsRepository: Repository<RightsModel>,
+    private filesService: FilesService,
+    private rightsService: RightsService,
   ) {}
 
   async createProject(dto: ProjectCreateDto, author: User) {
@@ -32,7 +30,7 @@ export class ProjectService {
       createdBy: author,
     });
 
-    await this.rightsRepository.save({
+    await this.rightsService.createRights({
       project,
       user: author,
       isCanDownload: true,
@@ -42,9 +40,9 @@ export class ProjectService {
     return project;
   }
 
-  async getProjectInfo(id: string) {
+  async getProjectInfo(id: number) {
     const project = await this.projectRepository.findOne({
-      where: { id: parseInt(id) },
+      where: { id: id },
       select: {
         createdBy: this.selectAuthorOptions,
       },
@@ -76,8 +74,26 @@ export class ProjectService {
     };
   }
 
+  async getAllProjects(user: User) {
+    const projectIds = await this.rightsService.getAllProjectsForUser(user);
+
+    const projects = await this.projectRepository.find({
+      where: {
+        id: In(Array.from(new Set(projectIds)).map((r) => r.project.id)),
+      },
+      select: {
+        createdBy: this.selectAuthorOptions,
+      },
+      relations: {
+        createdBy: true,
+      },
+    });
+
+    return projects;
+  }
+
   async createNewVersion(
-    projectId: string,
+    projectId: number,
     version: string,
     files: {
       firmware: Express.Multer.File[];
@@ -87,7 +103,7 @@ export class ProjectService {
     author: User,
   ) {
     const project = await this.projectRepository.findOne({
-      where: { id: parseInt(projectId) },
+      where: { id: projectId },
       relations: { versions: true },
     });
 
@@ -97,9 +113,10 @@ export class ProjectService {
         HttpStatus.BAD_REQUEST,
       );
 
-    const rights = await this.rightsRepository.findOne({
-      where: { project: { id: project.id }, user: { id: author.id } },
-    });
+    const rights = await this.rightsService.getProjectRightsForUser(
+      projectId,
+      author,
+    );
 
     if (!rights || !rights.isCanUpload)
       throw new HttpException(
@@ -117,16 +134,16 @@ export class ProjectService {
     fs.mkdirSync(path, { recursive: true });
 
     const flatFiles = Object.values(files).flat();
-    const dbFiles = await this.saveFilesToDisk(flatFiles, path);
+    const dbFiles = await this.filesService.saveFilesToDisk(flatFiles, path);
 
-    const ver = await this.versionRepository.save({
+    const ver: VersionModel = await this.versionRepository.save({
       version,
       project: project,
       createdBy: author,
     });
 
-    await this.fileRepository.save(
-      dbFiles.map((file) => ({ ...file, version: ver })),
+    await this.filesService.createFiles(
+      ...dbFiles.map((file) => ({ ...file, version: ver })),
     );
 
     return {
@@ -136,9 +153,9 @@ export class ProjectService {
     };
   }
 
-  async getHistory(projectId: string) {
+  async getHistory(projectId: number) {
     return this.versionRepository.find({
-      where: { project: { id: parseInt(projectId) } },
+      where: { project: { id: projectId } },
       select: {
         createdBy: this.selectAuthorOptions,
       },
@@ -152,20 +169,24 @@ export class ProjectService {
     });
   }
 
-  async getFileStream(fileId: string, user: User) {
-    const dbFile = await this.fileRepository.findOne({
-      where: { id: parseInt(fileId) },
-      relations: {
-        version: { project: true },
-      },
-    });
+  async getProjectRights(projectId: number, user: User) {
+    return this.rightsService.getProjectRightsForUser(projectId, user);
+  }
 
-    const rights = await this.rightsRepository.findOne({
-      where: {
-        project: { id: dbFile.version.project.id },
-        user: { id: user.id },
-      },
-    });
+  async getParticipants(projectId: number) {
+    return this.rightsService.getAllProjectRights(projectId);
+  }
+
+  async getFileStream(fileId: number, user: User) {
+    const dbFile = await this.filesService.getFileWithProject(fileId);
+
+    if (!dbFile)
+      throw new HttpException('File not found', HttpStatus.NOT_FOUND);
+
+    const rights = await this.rightsService.getProjectRightsForUser(
+      dbFile.version.project.id,
+      user,
+    );
 
     if (!rights || !rights.isCanDownload)
       throw new HttpException(
@@ -173,26 +194,6 @@ export class ProjectService {
         HttpStatus.FORBIDDEN,
       );
 
-    if (!dbFile)
-      throw new HttpException('File not found', HttpStatus.NOT_FOUND);
-
     return { stream: fs.createReadStream(dbFile.path), file: dbFile };
-  }
-
-  private async saveFilesToDisk(files: Array<FileCreateDto>, path: string) {
-    const promises = files.map((file) => {
-      const ext = extname(file.originalname);
-      const filePath = `${path}/${file.fieldname}${ext}`;
-      file.path = filePath;
-      file.filename = `${file.fieldname}${ext}`;
-      return fs.promises.writeFile(filePath, file.buffer);
-    });
-
-    await Promise.all(promises);
-
-    return files.map((file) => {
-      delete file.buffer;
-      return file;
-    });
   }
 }

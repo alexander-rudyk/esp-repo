@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { User } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { UserCreateDto } from './dto/user.create.dto';
 
 @Injectable()
@@ -21,6 +21,23 @@ export class UsersService {
     if (!includePass) delete user.password;
 
     return user;
+  }
+
+  async findByQuery(query: string) {
+    query += '%';
+    return this.userRepository.find({
+      where: [
+        { email: ILike(query) },
+        { firstName: ILike(query) },
+        { lastName: ILike(query) },
+      ],
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
   }
 
   async createUser(dto: UserCreateDto) {
