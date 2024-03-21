@@ -7,6 +7,8 @@ import { FindOptionsSelect, In, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { RightsService } from 'src/rights/rights.service';
 import { FilesService } from 'src/files/files.service';
+import { RightsCreateDto } from 'src/rights/dto/rights.create.dto';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class ProjectService {
@@ -22,6 +24,7 @@ export class ProjectService {
     @Inject('VERSION_REPO') private versionRepository: Repository<VersionModel>,
     private filesService: FilesService,
     private rightsService: RightsService,
+    private usersService: UsersService,
   ) {}
 
   async createProject(dto: ProjectCreateDto, author: User) {
@@ -120,7 +123,7 @@ export class ProjectService {
 
     if (!rights || !rights.isCanUpload)
       throw new HttpException(
-        'You have acces to upload new version for this project',
+        "You haven't acces to upload new version for this project",
         HttpStatus.FORBIDDEN,
       );
 
@@ -190,10 +193,68 @@ export class ProjectService {
 
     if (!rights || !rights.isCanDownload)
       throw new HttpException(
-        'You have acces to download files from this project',
+        "You haven't acces to download files from this project",
         HttpStatus.FORBIDDEN,
       );
 
     return { stream: fs.createReadStream(dbFile.path), file: dbFile };
+  }
+
+  async grantAccesToProject(
+    projectId: number,
+    user: User,
+    dto: RightsCreateDto,
+  ) {
+    const rights = await this.rightsService.getProjectRightsForUser(
+      projectId,
+      user,
+    );
+
+    if (!rights)
+      throw new HttpException(
+        "You haven't acces to edit rights for this project",
+        HttpStatus.UNAUTHORIZED,
+      );
+
+    const newParticipant = await this.usersService.findById(dto.user.id);
+
+    if (!newParticipant)
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+
+    const rights_for_new_p = await this.rightsService.getProjectRightsForUser(
+      projectId,
+      newParticipant,
+    );
+
+    if (rights_for_new_p)
+      throw new HttpException('Acces already granted', HttpStatus.BAD_REQUEST);
+
+    return this.rightsService.createRights({
+      ...dto,
+      project: { id: projectId },
+    });
+  }
+
+  async removeAcces(projectId: number, rightsId: number, user: User) {
+    const rights = await this.rightsService.getProjectRightsForUser(
+      projectId,
+      user,
+    );
+
+    if (!rights)
+      throw new HttpException(
+        "You haven't acces to edit rights for this project",
+        HttpStatus.UNAUTHORIZED,
+      );
+
+    const rights_to_remove = await this.rightsService.getRightsById(rightsId);
+
+    if (!rights_to_remove)
+      throw new HttpException(
+        'Rights not found or already removed',
+        HttpStatus.NOT_FOUND,
+      );
+
+    return this.rightsService.removeRights(rightsId);
   }
 }

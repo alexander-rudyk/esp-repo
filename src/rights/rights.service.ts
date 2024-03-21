@@ -14,6 +14,10 @@ export class RightsService {
     return this.rightsRepository.save(dto);
   }
 
+  getRightsById(id: number) {
+    return this.rightsRepository.findOne({ where: { id } });
+  }
+
   getAllProjectRights(projectId: number) {
     return this.rightsRepository.find({
       where: { project: { id: projectId } },
@@ -22,6 +26,7 @@ export class RightsService {
           id: true,
           firstName: true,
           lastName: true,
+          email: true,
         },
       },
       relations: { user: true },
@@ -45,5 +50,9 @@ export class RightsService {
         project: true,
       },
     });
+  }
+
+  removeRights(id: number) {
+    return this.rightsRepository.delete({ id });
   }
 }

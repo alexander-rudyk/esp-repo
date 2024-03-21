@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -16,6 +17,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express/multer';
 import { ProjectCreateDto } from './dto/project.create.dto';
 import type { Response } from 'express';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { RightsCreateDto } from 'src/rights/dto/rights.create.dto';
 
 @Controller('project')
 export class ProjectController {
@@ -77,6 +79,26 @@ export class ProjectController {
   @Get(':id/rights')
   getRights(@Request() req, @Param('id') id: number) {
     return this.projectService.getProjectRights(id, req.user);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post(':id/rights')
+  addRights(
+    @Request() req,
+    @Param('id') id: number,
+    @Body() dto: RightsCreateDto,
+  ) {
+    return this.projectService.grantAccesToProject(id, req.user, dto);
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete(':projectId/rights/:id')
+  removeRights(
+    @Request() req,
+    @Param('projectId') projectId: number,
+    @Param('id') id: number,
+  ) {
+    return this.projectService.removeAcces(projectId, id, req.user);
   }
 
   @UseGuards(AuthGuard)
