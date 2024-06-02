@@ -7,11 +7,16 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RightsModule } from './rights/rights.module';
 import { FilesModule } from './files/files.module';
+import typeorm from './config/typeorm';
 
 @Module({
   imports: [
     MulterModule.register({}),
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [typeorm],
+      envFilePath: '.env',
+    }),
     DatabaseModule,
     ProjectModule,
     AuthModule,

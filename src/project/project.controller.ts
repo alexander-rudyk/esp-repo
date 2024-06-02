@@ -18,7 +18,10 @@ import { ProjectCreateDto } from './dto/project.create.dto';
 import type { Response } from 'express';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RightsCreateDto } from 'src/rights/dto/rights.create.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiBearerAuth()
+@ApiTags('project')
 @Controller('project')
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
