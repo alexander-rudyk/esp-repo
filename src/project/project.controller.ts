@@ -3,8 +3,11 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   Post,
+  Put,
+  Query,
   Request,
   Res,
   StreamableFile,
@@ -12,30 +15,59 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ProjectService } from './project.service';
+import { ProjectService } from './services/project.service';
 import { FileFieldsInterceptor } from '@nestjs/platform-express/multer';
-import { ProjectCreateDto } from './dto/project.create.dto';
+import {
+  ProjectCreateDto,
+  ProjectCreateResponse,
+} from './dto/project.create.dto';
 import type { Response } from 'express';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RightsCreateDto } from 'src/rights/dto/rights.create.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ProjectSettingsService } from './services/settings.service';
+import { ProjectSettingsUpdateDto } from './dto/project_settings.update.dto';
 
 @ApiBearerAuth()
-@ApiTags('project')
-@Controller('project')
+@ApiTags('projects')
+@Controller('projects')
 export class ProjectController {
-  constructor(private readonly projectService: ProjectService) {}
+  constructor(
+    private readonly projectService: ProjectService,
+    private readonly settingsService: ProjectSettingsService,
+  ) {}
 
   @UseGuards(AuthGuard)
   @Post()
-  createProject(@Request() req, @Body() dto: ProjectCreateDto) {
+  @ApiResponse({ status: HttpStatus.CREATED })
+  createProject(
+    @Request() req,
+    @Body() dto: ProjectCreateDto,
+  ): Promise<ProjectCreateResponse> {
     return this.projectService.createProject(dto, req.user);
   }
 
   @UseGuards(AuthGuard)
+  @Put(':id/settings')
+  async updateProjectSettings(
+    @Param('id') id: number,
+    @Body() dto: ProjectSettingsUpdateDto,
+  ) {
+    await this.settingsService.updateProjectSettings(id, dto);
+  }
+
+  @UseGuards(AuthGuard)
   @Get()
-  async getMyProjects(@Request() req) {
+  async getUserProjects(@Request() req) {
     return this.projectService.getAllProjects(req.user);
+  }
+
+  @Get('/public')
+  async getPublicProjects(@Query() query) {
+    const { userId } = query;
+    return this.projectService.getAllPublicProject(
+      userId ? { id: userId } : null,
+    );
   }
 
   @UseGuards(AuthGuard)

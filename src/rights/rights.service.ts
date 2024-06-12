@@ -42,7 +42,7 @@ export class RightsService {
     });
   }
 
-  getAllProjectsForUser(user: User) {
+  getAllProjectsForUser(user: Partial<User>) {
     return this.rightsRepository.find({
       where: { user: { id: user.id } },
       select: { project: { id: true } },

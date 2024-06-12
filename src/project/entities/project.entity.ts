@@ -4,11 +4,13 @@ import {
   Entity,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { VersionModel } from './version.entity';
 import { User } from 'src/users/entities/user.entity';
+import { ProjectSettingsModel } from './settings.entity';
 
 @Entity({ name: 'project' })
 export class ProjectModel {
@@ -41,4 +43,7 @@ export class ProjectModel {
 
   @OneToMany(() => VersionModel, (version) => version.project)
   versions: VersionModel[];
+
+  @OneToOne(() => ProjectSettingsModel, (settings) => settings.project)
+  settings: ProjectSettingsModel;
 }

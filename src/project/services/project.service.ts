@@ -1,14 +1,19 @@
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { ProjectModel } from './entities/project.entity';
+import { ProjectModel } from '../entities/project.entity';
 import * as fs from 'fs';
-import { ProjectCreateDto } from './dto/project.create.dto';
-import { VersionModel } from './entities/version.entity';
-import { FindOptionsSelect, In, Repository } from 'typeorm';
+import {
+  ProjectCreateDto,
+  ProjectCreateResponse,
+} from '../dto/project.create.dto';
+import { VersionModel } from '../entities/version.entity';
+import { FindOptionsSelect, FindOptionsWhere, In, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { RightsService } from 'src/rights/rights.service';
 import { FilesService } from 'src/files/files.service';
 import { RightsCreateDto } from 'src/rights/dto/rights.create.dto';
 import { UsersService } from 'src/users/users.service';
+import { ProjectSettingsService } from './settings.service';
+import { ProjectVisibility } from '../entities/settings.entity';
 
 @Injectable()
 export class ProjectService {
@@ -25,13 +30,24 @@ export class ProjectService {
     private filesService: FilesService,
     private rightsService: RightsService,
     private usersService: UsersService,
+    private settingsService: ProjectSettingsService,
   ) {}
 
-  async createProject(dto: ProjectCreateDto, author: User) {
+  async createProject(
+    dto: ProjectCreateDto,
+    author: User,
+  ): Promise<ProjectCreateResponse> {
     const project = await this.projectRepository.save({
       ...dto,
       createdBy: author,
     });
+
+    const settings = await this.settingsService.createProjectSettings({
+      project,
+      visibility: ProjectVisibility.Private,
+    });
+
+    delete settings.project;
 
     await this.rightsService.createRights({
       project,
@@ -40,7 +56,10 @@ export class ProjectService {
       isCanUpload: true,
     });
 
-    return project;
+    return {
+      ...project,
+      settings,
+    };
   }
 
   async getProjectInfo(id: number) {
@@ -77,7 +96,38 @@ export class ProjectService {
     };
   }
 
-  async getAllProjects(user: User) {
+  async getAllPublicProject(user?: Pick<User, 'id'>) {
+    const whereProj: FindOptionsWhere<ProjectModel> = {
+      settings: {
+        visibility: ProjectVisibility.Public,
+      },
+    };
+
+    if (user) {
+      const projectIds = await this.rightsService.getAllProjectsForUser(user);
+
+      whereProj.id = In(
+        Array.from(new Set(projectIds)).map((r) => r.project.id),
+      );
+    }
+
+    console.log(whereProj);
+
+    const projects = await this.projectRepository.find({
+      where: whereProj,
+      select: {
+        createdBy: this.selectAuthorOptions,
+      },
+      relations: {
+        createdBy: true,
+        settings: true,
+      },
+    });
+
+    return projects;
+  }
+
+  async getAllProjects(user: Partial<User>) {
     const projectIds = await this.rightsService.getAllProjectsForUser(user);
 
     const projects = await this.projectRepository.find({
